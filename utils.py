@@ -2,6 +2,7 @@
 from typing import Union
 
 import pandas as pd
+import numpy as np
 from pathlib import Path
 
 
@@ -55,7 +56,7 @@ def read_data(data_dir: Union[str, Path] = "data",
     # Make sure data is in ascending order by timestamp
     data.sort_values(by=[timestamp_col_name], inplace=True)
 
-    return data
+    return data, csv_files
 
 
 def is_ne_in_df(df: pd.DataFrame):
@@ -139,3 +140,10 @@ def get_indices_entire_sequence(data: pd.DataFrame, window_size: int, step_size:
         subseq_last_idx += step_size
 
     return indices
+
+
+def prepare_elevation_profile(jump, df, column_to_be_shifted):
+    jump = int(jump)
+    new_column = np.zeros(len(df))
+    new_column[jump:] = df.iloc[:-jump, column_to_be_shifted].to_numpy()
+    return new_column

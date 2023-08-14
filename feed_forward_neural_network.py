@@ -18,7 +18,7 @@ class FCNN(nn.Module):
 
     def forward(self, x):
         # Flatten the input here if needed
-        #x = x.reshape(-1, self.num_features)
+        x = x.reshape(-1, self.num_features)
         x = self.dropout1(torch.relu(self.fc1(x)))
         x = self.dropout2(torch.relu(self.batch_norm2(self.fc2(x))))
         return self.fc3(x)
