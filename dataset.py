@@ -23,6 +23,5 @@ class CustomDataset(Dataset):
         half = round(self.windowsize/2)
         src = sequence[:self.windowsize-1, 1:]
         #src = src.reshape(-1)
-        print('src',src.shape)
         trg = sequence[self.windowsize-1:, :1]
         return src, trg.squeeze(-1)

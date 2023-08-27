@@ -28,18 +28,30 @@ def read_data(data_dir: Union[str, Path] = "data",
     # Read csv file
     csv_files = list(data_dir.glob("*.csv"))
 
-    if len(csv_files) > 1:
+    if len(csv_files) > 2:
         raise ValueError(
-            "data_dir contains more than 1 csv file. Must only contain 1")
+            "data_dir contains more than 2 csv file. Must only contain 1")
     elif len(csv_files) == 0:
         raise ValueError("data_dir must contain at least 1 csv file.")
 
-    data_path = csv_files[0]
+    if 'Train' in csv_files[0].stem:
+        data_path_train = csv_files[0]
+        data_path_test = csv_files[1]
+    elif 'Train' in csv_files[1].stem:
+        data_path_train = csv_files[1]
+        data_path_test = csv_files[0]
 
-    print("Reading file in {}".format(data_path))
+    #print("Reading file in {}".format(data_path))
 
-    data = pd.read_csv(
-        data_path,
+    train_data = pd.read_csv(
+        data_path_train,
+        parse_dates=[timestamp_col_name],
+        index_col=[timestamp_col_name],
+        infer_datetime_format=True,
+        low_memory=False
+    )
+    test_data = pd.read_csv(
+        data_path_test,
         parse_dates=[timestamp_col_name],
         index_col=[timestamp_col_name],
         infer_datetime_format=True,
@@ -47,16 +59,20 @@ def read_data(data_dir: Union[str, Path] = "data",
     )
 
     # Make sure all "n/e" values have been removed from df.
-    if is_ne_in_df(data):
+    if is_ne_in_df(train_data):
+        raise ValueError(
+            "data frame contains 'n/e' values. These must be handled")
+    if is_ne_in_df(test_data):
         raise ValueError(
             "data frame contains 'n/e' values. These must be handled")
 
-    data = to_numeric_and_downcast_data(data)
+    train_data = to_numeric_and_downcast_data(train_data)
+    test_data = to_numeric_and_downcast_data(test_data)
 
     # Make sure data is in ascending order by timestamp
-    data.sort_values(by=[timestamp_col_name], inplace=True)
+    #data.sort_values(by=[timestamp_col_name], inplace=True)
 
-    return data, csv_files
+    return train_data, test_data, data_path_train.stem, data_path_test.stem
 
 
 def is_ne_in_df(df: pd.DataFrame):

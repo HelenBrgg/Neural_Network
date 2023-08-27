@@ -1,1 +1,35 @@
-,model,mae,mse,rmse,r2,learning_rate,duration,dataset
+,unique_ide,model,mae,mse,rmse,r2,learning_rate,epoch,patience,duration,test_dataset,train_dataset,architecture
+f3f4a872-0385-4566-9dab-3c552d10e0d5,SimpleLSTM,0.14027195,0.048146084,0.21942216,0.629825085401535,0.001,999,500,4112.353377819061,profile_serieTrainSineRandomWalk,profile_serieTest1Anomaly,"SimpleLSTM(
+  (lstm): LSTM(5, 32, num_layers=2, batch_first=True)
+  (linear): Linear(in_features=32, out_features=1, bias=True)
+)"
+f3e8f70e-7079-4864-b0da-4dd8cb19ef6a,FCNN,0.8515417,2.004722,1.4158821,-7.5454912185668945,1e-05,49,15,121.3893563747406,profile_serieTrainSineRandomWalk,profile_serieTest1Anomaly,"FCNN(
+  (fc1): Linear(in_features=1000, out_features=1000, bias=True)
+  (dropout1): Dropout(p=0.1, inplace=False)
+  (batch_norm1): BatchNorm1d(1000, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+  (fc2): Linear(in_features=1000, out_features=40, bias=True)
+  (batch_norm2): BatchNorm1d(40, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+  (dropout2): Dropout(p=0.1, inplace=False)
+  (fc3): Linear(in_features=40, out_features=1, bias=True)
+)"
+43e1258b-da9c-4402-adb7-087adbd44a3b,TransformerEncoderRegressor,0.31473914,0.18892245,0.4346521,0.637858122587204,1e-05,29,15,2311.1857104301453,profile_serieTrainSineRandomWalk,profile_serieTest1Anomaly,"TransformerEncoderRegressor(
+  (embedding): Linear(in_features=5, out_features=512, bias=True)
+  (dropout1): Dropout(p=0.1, inplace=False)
+  (transformer_encoder): TransformerEncoder(
+    (layers): ModuleList(
+      (0-1): 2 x TransformerEncoderLayer(
+        (self_attn): MultiheadAttention(
+          (out_proj): NonDynamicallyQuantizableLinear(in_features=512, out_features=512, bias=True)
+        )
+        (linear1): Linear(in_features=512, out_features=512, bias=True)
+        (dropout): Dropout(p=0.2, inplace=False)
+        (linear2): Linear(in_features=512, out_features=512, bias=True)
+        (norm1): LayerNorm((512,), eps=1e-05, elementwise_affine=True)
+        (norm2): LayerNorm((512,), eps=1e-05, elementwise_affine=True)
+        (dropout1): Dropout(p=0.2, inplace=False)
+        (dropout2): Dropout(p=0.2, inplace=False)
+      )
+    )
+  )
+  (fc): Linear(in_features=102400, out_features=1, bias=True)
+)"
