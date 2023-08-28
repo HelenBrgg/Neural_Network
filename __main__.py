@@ -139,7 +139,7 @@ fcnn = fcnn.FCNN(sec_len, len(exogenous_vars)).to(device)
 transformer = transformer.TransformerEncoderRegressor(
     len(exogenous_vars), window_size-1, num_heads, num_layers).to(device)
 
-model_list = [lstm]  # ,  transformer, ]fcnn
+model_list = [lstm,  transformer, fcnn]
 
 
 for model in model_list:
@@ -147,16 +147,19 @@ for model in model_list:
     model_name = model.__class__.__name__
     if model_name == 'SimpleLSTM':
         epochs = 1000
-        learning_rate = 0.001
+        learning_rate = 0.00001
         patience = 500
+        batchsize = 256
     if model_name == 'FCNN':
         epochs = 70
         learning_rate = 0.00001
         patience = 30
+        batchsize = 256
     if model_name == 'TransformerEncoderRegressor':
         epochs = 70
         learning_rate = 0.00001
         patience = 30
+        batchsize = 256
     loss_values = []
     criterion = torch.nn.MSELoss().to(device)  # for regression
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
@@ -183,6 +186,7 @@ for model in model_list:
 
             if (epoch+1) % 10 == 0:
                 print('epoch', epoch+1, 'loss= ', loss.item())
+
             loss_values.append(loss.item())
 
         # Validate the model
@@ -245,9 +249,8 @@ for model in model_list:
 
         # Inverse transform predictions
         predictions = test_scalers[target_col_name].inverse_transform(output)
-        # predictions = scaler.inverse_transform(predictions)
+
         y = test_scalers[target_col_name].inverse_transform(y)
-        # trg_y = scaler.inverse_transform(trg_y)
 
         # Append predictions and actual values to the lists
         all_predictions.append(predictions)
@@ -304,9 +307,10 @@ for model in model_list:
 
         # Inverse transform predictions
         predictions = train_scalers[target_col_name].inverse_transform(output)
-  s
+        # predictions = scaler.inverse_transform(predictions)
         y = train_scalers[target_col_name].inverse_transform(y)
-   
+        # trg_y = scaler.inverse_transform(trg_y)
+
         # Append predictions and actual values to the lists
         all_predictions.append(predictions)
         all_y.append(y)
