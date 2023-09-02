@@ -27,10 +27,10 @@ print(f"Using {device} device")
 
 # Hyperparams
 test_size = 0.1
-batch_size = 256
+
+
 sec_len_output = 1
-sec_len = 200  # must be even
-window_size = sec_len+sec_len_output
+
 step_size = 1
 target_col_name = "elevation_profile2"  # "Volume"
 # "elevation_profile2"
@@ -40,133 +40,147 @@ exogenous_vars = ["Spannung_PL (2)", "Strom_PL (3)", "Drahtvorschub"]
 input_variables = [target_col_name] + exogenous_vars
 target_idx = 0  # index position of target in batched trg_y
 
+num_heads = 4
 
-train_data, test_data, name_dataset_train, name_dataset_test = utils.read_data(
+
+hidden_dim = 64  # number of LSTM cells
+# number of LSTM layers
+
+
+model_list = ['transformer']  # , 'lstm',  'fcnn']
+
+train_data, test_data, val_data, name_dataset_train, name_dataset_test, name_dataset_val = utils.read_data(
     timestamp_col_name=timestamp_col)
 
-# specifically for the use case of the cone: shifting output target to right by half of the width of the cone
-train_data.iloc[:, target_idx] = utils.prepare_elevation_profile(
-    jump=sec_len/2, df=train_data, column_to_be_shifted=target_idx)
-test_data.iloc[:, target_idx] = utils.prepare_elevation_profile(
-    jump=sec_len/2, df=test_data, column_to_be_shifted=target_idx)
-train_scalers = {}
-for i in input_variables:
-    scaler = StandardScaler()
-    train_data[i] = scaler.fit_transform(
-        train_data[i].values.reshape(-1, 1))
-    train_scalers[i] = scaler
-test_scalers = {}
-for i in input_variables:
-    scaler = StandardScaler()
-    test_data[i] = scaler.fit_transform(test_data[i].values.reshape(-1, 1))
-    test_scalers[i] = scaler
 
-total_rows = len(train_data)
-split_train = round(total_rows * 0.9)
+for model_name in model_list:
 
-# Create separate dataframes for clarity
-training_data = train_data.iloc[:split_train, :]
-validation_data = train_data.iloc[split_train:, :]
-# test_data = data.iloc[split_val:, :]
-print("Length of train_data:", len(training_data))
-# print("Length of validation_data:", len(validation_data))
-print("Length of test_data:", len(test_data))
-
-
-training_indices = utils.get_indices_entire_sequence(
-    data=training_data,
-    window_size=window_size,
-    step_size=step_size)
-
-# Making instance of custom dataset class
-training_data = ds.CustomDataset(
-    data=torch.tensor(training_data[input_variables].values).float(),
-    target_feature=target_idx,
-    indices=training_indices,
-    windowsize=window_size,
-)
-
-validation_indices = utils.get_indices_entire_sequence(
-    data=validation_data,
-    window_size=window_size,
-    step_size=step_size)
-
-# Making instance of custom dataset class
-validation_data = ds.CustomDataset(
-    data=torch.tensor(validation_data[input_variables].values).float(),
-    target_feature=target_idx,
-    indices=validation_indices,
-    windowsize=window_size,
-)
-
-
-test_indices = utils.get_indices_entire_sequence(
-    data=test_data,
-    window_size=window_size,
-    step_size=step_size)
-
-# Making instance of custom dataset class
-test_data = ds.CustomDataset(
-    data=torch.tensor(test_data[input_variables].values).float(),
-    target_feature=target_idx,
-    indices=test_indices,
-    windowsize=window_size
-)
-
-training_data = DataLoader(training_data, batch_size, drop_last=True)
-validation_data = DataLoader(validation_data, batch_size, drop_last=True)
-test_data = DataLoader(test_data, batch_size, drop_last=True)
-# data = DataLoader(data, batch_size, drop_last=True)
-print("Length of train_data:", len(training_data))
-# print("Length of validation_data:", len(validation_data))
-print("Length of test_data:", len(test_data))
-
-print(len(test_data))
-print(len(training_data))
-# print(len(data))
-
-num_heads = 4
-num_layers = 2
-
-
-hidden_dim = 32  # number of LSTM cells
-num_layers = 2  # number of LSTM layers
-
-lstm = lstm.SimpleLSTM(input_dim=len(exogenous_vars), hidden_dim=hidden_dim,
-                       num_layers=num_layers, output_dim=sec_len_output).to(device)
-
-fcnn = fcnn.FCNN(sec_len, len(exogenous_vars)).to(device)
-transformer = transformer.TransformerEncoderRegressor(
-    len(exogenous_vars), window_size-1, num_heads, num_layers).to(device)
-
-model_list = [lstm,  transformer, fcnn]
-
-
-for model in model_list:
-
-    model_name = model.__class__.__name__
-    if model_name == 'SimpleLSTM':
+    if model_name == 'lstm':
         epochs = 1000
         learning_rate = 0.00001
         patience = 500
-        batchsize = 256
-    if model_name == 'FCNN':
+        batch_size = 256
+        sec_len = 194
+        num_layers = 2
+        window_size = sec_len+sec_len_output
+        model = lstm.SimpleLSTM(input_dim=len(exogenous_vars), hidden_dim=hidden_dim,
+                                num_layers=num_layers, output_dim=sec_len_output).to(device)
+    if model_name == 'fcnn':
         epochs = 70
         learning_rate = 0.00001
         patience = 30
-        batchsize = 256
-    if model_name == 'TransformerEncoderRegressor':
+        batch_size = 256
+        sec_len = 210
+        window_size = sec_len+sec_len_output
+        model = fcnn.FCNN(sec_len, len(exogenous_vars)).to(device)
+    if model_name == 'transformer':
         epochs = 70
         learning_rate = 0.00001
-        patience = 30
-        batchsize = 256
+        patience = 40
+        batch_size = 256
+        sec_len = 194  # must be even
+        window_size = sec_len+sec_len_output
+        num_layers = 2
+        num_heads = 4
+        hidden_dim = 64
+        model = transformer.TransformerEncoderRegressor(
+            len(exogenous_vars), window_size-1, num_heads, num_layers).to(device)
+
+    model_name = model.__class__.__name__
+
+    # specifically for the use case of the cone: shifting output target to right by half of the width of the cone
+    train_data.iloc[:, target_idx] = utils.prepare_elevation_profile(
+        jump=sec_len/2, df=train_data, column_to_be_shifted=target_idx)
+    test_data.iloc[:, target_idx] = utils.prepare_elevation_profile(
+        jump=sec_len/2, df=test_data, column_to_be_shifted=target_idx)
+
+    val_data.iloc[:, target_idx] = utils.prepare_elevation_profile(
+        jump=sec_len/2, df=val_data, column_to_be_shifted=target_idx)
+    train_scalers = {}
+    for i in input_variables:
+        scaler = StandardScaler()
+        train_data[i] = scaler.fit_transform(
+            train_data[i].values.reshape(-1, 1))
+        train_scalers[i] = scaler
+    test_scalers = {}
+    for i in input_variables:
+        scaler = StandardScaler()
+        test_data[i] = scaler.fit_transform(test_data[i].values.reshape(-1, 1))
+        test_scalers[i] = scaler
+    for i in input_variables:
+        scaler = StandardScaler()
+        val_data[i] = scaler.fit_transform(val_data[i].values.reshape(-1, 1))
+
+    total_rows = len(train_data)
+    split_train = round(total_rows * 0.9)
+
+    # Create separate dataframes for clarity
+    training_data = train_data.iloc[:split_train, :]
+    validation_data = train_data.iloc[split_train:, :]
+    # test_data = data.iloc[split_val:, :]
+    print("Length of train_data:", len(train_data))
+    # print("Length of validation_data:", len(validation_data))
+    print("Length of test_data:", len(test_data))
+    # print("Length of val_data:", len(val_data))
+
+    training_indices = utils.get_indices_entire_sequence(
+        data=train_data,
+        window_size=window_size,
+        step_size=step_size)
+
+    # Making instance of custom dataset class
+    training_data = ds.CustomDataset(
+        data=torch.tensor(train_data[input_variables].values).float(),
+        target_feature=target_idx,
+        indices=training_indices,
+        windowsize=window_size,
+    )
+
+    validation_indices = utils.get_indices_entire_sequence(
+        data=validation_data,
+        window_size=window_size,
+        step_size=step_size)
+
+    # Making instance of custom dataset class
+    validation_data = ds.CustomDataset(
+        data=torch.tensor(validation_data[input_variables].values).float(),
+        target_feature=target_idx,
+        indices=validation_indices,
+        windowsize=window_size,
+    )
+
+    test_indices = utils.get_indices_entire_sequence(
+        data=test_data,
+        window_size=window_size,
+        step_size=step_size)
+
+    # Making instance of custom dataset class
+    test_data = ds.CustomDataset(
+        data=torch.tensor(test_data[input_variables].values).float(),
+        target_feature=target_idx,
+        indices=test_indices,
+        windowsize=window_size
+    )
+
+    training_data = DataLoader(training_data, batch_size, drop_last=True)
+    validation_data = DataLoader(validation_data, batch_size, drop_last=True)
+    test_data = DataLoader(test_data, batch_size, drop_last=True)
+
     loss_values = []
+    loss_values_validation = []
     criterion = torch.nn.MSELoss().to(device)  # for regression
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
     best_loss = float('inf')
     counter = 0
     # and load the first batch
+    # data = DataLoader(data, batch_size, drop_last=True)
+    print("Length of train_data:", len(training_data))
+    # print("Length of validation_data:", len(validation_data))
+    print("Length of test_data:", len(test_data))
+    print(len(test_data))
+    print(len(training_data))
+    # print(len(data))
 
     start = time.time()
     for epoch in range(epochs):
@@ -199,6 +213,7 @@ for model in model_list:
                 y = y.to(device)
                 output = model(X)
                 val_loss = criterion(output, y)
+                loss_values_validation.append(val_loss.item())
                 val_loss_total += val_loss.item()  # accumulate the batch loss
 
     #   Compute the average validation loss for the epoch
@@ -206,6 +221,8 @@ for model in model_list:
 
     #   Check for loss improvement
         if average_val_loss < best_loss:
+            print('##############################################################################',
+                  epoch, average_val_loss)
             best_loss = average_val_loss
             counter = 0
             torch.save(model.state_dict(), 'best_model'+model_name+'.pt')
@@ -225,6 +242,13 @@ for model in model_list:
     plt.xlabel('Batch')
     plt.ylabel('Loss value')
     plt.savefig(directory+'/loss' + model_name + name_dataset_train +
+                name_dataset_train + '.png')
+    plt.figure(figsize=(10, 6))
+    plt.plot(loss_values_validation)
+    plt.title('Loss during validation')
+    plt.xlabel('Batch')
+    plt.ylabel('Loss value')
+    plt.savefig(directory+'/loss_validation' + model_name + name_dataset_train +
                 name_dataset_train + '.png')
 
     all_predictions = []
@@ -269,8 +293,8 @@ for model in model_list:
 
     unique_id = str(uuid.uuid4())
     model_metrics = {'unique_id': unique_id, 'model': model_name, 'mae': mae, 'mse': mse, 'rmse': rmse, 'r2':
-                     r2, 'learning rate': learning_rate, 'epoch': epoch, 'patience': patience, 'duration': end-start, 'test_dataset': name_dataset_test, 'train_dataset': name_dataset_train, 'architecture': model}
-    with open("model_metrics.csv", "a",  newline="") as fp:
+                     r2, 'learning rate': learning_rate, 'epoch': epoch, 'patience': patience, 'duration': end-start, 'test_dataset': name_dataset_test, 'train_dataset': name_dataset_train, 'architecture': model, 'windowsize': window_size, 'batchsize': batch_size}
+    with open("model_metrics"+name_dataset_train+name_dataset_test+".csv", "a",  newline="") as fp:
         # Create a writer object
         writer = csv.DictWriter(fp, fieldnames=model_metrics.keys())
         # Write the data rows
@@ -290,6 +314,49 @@ for model in model_list:
     all_predictions = []
     all_y = []
     for i, (X, y) in enumerate(training_data):
+        X = X.to(device)
+        y = y.to(device)
+
+        model.eval()
+
+        with torch.no_grad():
+            output = model(X)
+
+        output = output.detach().cpu().numpy()
+        y = y.detach().cpu().numpy()
+
+        original_shape = output.shape
+        predictions = output.reshape(-1, original_shape[-1])
+        y = y.reshape(-1, original_shape[-1])
+
+        # Inverse transform predictions
+        predictions = train_scalers[target_col_name].inverse_transform(output)
+
+        y = train_scalers[target_col_name].inverse_transform(y)
+
+        # Append predictions and actual values to the lists
+        all_predictions.append(predictions)
+        all_y.append(y)
+
+    all_predictions = np.concatenate(all_predictions)
+    all_y = np.concatenate(all_y)
+
+    # Flatten predictions and actual values
+    all_predictions_flat = all_predictions.flatten()
+    all_y_flat = all_y.flatten()
+
+    # Plotting
+    plt.figure(figsize=(10, 6))
+    plt.plot(all_y_flat, label='Actual')
+    plt.plot(all_predictions_flat, label='Predicted')
+    plt.legend()
+    plt.title('Actual vs Predicted for train batches ' +
+              model_name + name_dataset_train + name_dataset_test+unique_id)
+    plt.savefig(directory+'/actual_and_predicted_train_eval' + model_name +
+                name_dataset_train + name_dataset_test + unique_id + '.png')
+    all_predictions = []
+    all_y = []
+    for i, (X, y) in enumerate(validation_data):
         X = X.to(device)
         y = y.to(device)
 
@@ -327,7 +394,7 @@ for model in model_list:
     plt.plot(all_y_flat, label='Actual')
     plt.plot(all_predictions_flat, label='Predicted')
     plt.legend()
-    plt.title('Actual vs Predicted for train batches ' +
+    plt.title('Actual vs Predicted for val batches ' +
               model_name + name_dataset_train + name_dataset_test+unique_id)
-    plt.savefig(directory+'/actual_and_predicted_train_eval' + model_name +
+    plt.savefig(directory+'/actual_and_predicted_val_eval' + model_name +
                 name_dataset_train + name_dataset_test + unique_id + '.png')
