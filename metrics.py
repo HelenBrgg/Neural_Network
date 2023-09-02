@@ -17,5 +17,5 @@ def root_mean_squared_error(preds, y_true):
 def r_squared(preds, y_true):
     mean_true = np.mean(y_true)
     total_variance = np.sum((y_true - mean_true) ** 2)
-    explained_variance = np.sum((preds - mean_true) ** 2)
-    return 1 - (explained_variance / total_variance)
+    residual_variance = np.sum((y_true - preds) ** 2)
+    return 1 - (residual_variance / total_variance)
