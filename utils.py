@@ -28,13 +28,8 @@ def read_data(data_dir: Union[str, Path] = "data",
     # Read csv file
     csv_files = list(data_dir.glob("*.csv"))
 
-    if len(csv_files) > 3:
-        raise ValueError(
-            "data_dir contains more than 2 csv file. Must only contain 1")
-    elif len(csv_files) == 0:
-        raise ValueError("data_dir must contain at least 1 csv file.")
     for csv_file in csv_files:
-        if 'Train' in csv_file.stem:
+        if 'Train5' in csv_file.stem:
             data_path_train = csv_file
         if 'Test1' in csv_file.stem:
             data_path_val = csv_file
