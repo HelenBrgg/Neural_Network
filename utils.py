@@ -6,7 +6,7 @@ import numpy as np
 from pathlib import Path
 
 
-def read_data(data_dir: Union[str, Path] = "data",
+def read_data(name_train, name_test, data_dir: Union[str, Path] = "data",
               timestamp_col_name: str = "timestamp") -> pd.DataFrame:
     """
     Read data from csv file and return pd.Dataframe object
@@ -29,12 +29,34 @@ def read_data(data_dir: Union[str, Path] = "data",
     csv_files = list(data_dir.glob("*.csv"))
 
     for csv_file in csv_files:
-        if 'Train5' in csv_file.stem:
-            data_path_train = csv_file
-        if 'Test1' in csv_file.stem:
-            data_path_val = csv_file
-        if 'Test3' in csv_file.stem:
-            data_path_test = csv_file
+        if 'BigCone' in name_train and 'BigCone' in name_test:
+            if name_train in csv_file.stem and 'BigCone' in csv_file.stem:
+                data_path_train = csv_file
+            if name_test in csv_file.stem and 'BigCone' in csv_file.stem:
+                data_path_test = csv_file
+            if 'Test1' in csv_file.stem:
+                data_path_val = csv_file
+        if 'Exponential' in name_train and 'Exponential' in name_test:
+            if name_train in csv_file.stem and 'Exponential' in csv_file.stem:
+                data_path_train = csv_file
+            if name_test in csv_file.stem and 'Exponential' in csv_file.stem:
+                data_path_test = csv_file
+            if 'Test1' in csv_file.stem:
+                data_path_val = csv_file
+        if 'WideCone' in name_train and 'WideCone' in name_test:
+            if name_train in csv_file.stem and 'WideCone' in csv_file.stem:
+                data_path_train = csv_file
+            if name_test in csv_file.stem and 'WideCone' in csv_file.stem:
+                data_path_test = csv_file
+            if 'Test1' in csv_file.stem:
+                data_path_val = csv_file
+        else:
+            if name_train in csv_file.stem and not 'BigCone' in csv_file.stem and not 'Exponential' in csv_file.stem and not 'WideCone' in csv_file.stem:
+                data_path_train = csv_file
+            if 'Test1' in csv_file.stem:
+                data_path_val = csv_file
+            if name_test in csv_file.stem and not 'BigCone' in csv_file.stem and not 'Exponential' in csv_file.stem and not 'WideCone' in csv_file.stem:
+                data_path_test = csv_file
 
     #print("Reading file in {}".format(data_path))
 

@@ -1,4 +1,5 @@
 import utils
+from datetime import datetime
 import torch
 import time
 from torch import nn
@@ -40,155 +41,147 @@ exogenous_vars = ["Spannung_PL (2)", "Strom_PL (3)", "Drahtvorschub"]
 input_variables = [target_col_name] + exogenous_vars
 target_idx = 0  # index position of target in batched trg_y
 
-num_heads = 4
-
 
 hidden_dim = 64  # number of LSTM cells
 # number of LSTM layers
+print('' + str(datetime.now()))
+
+model_list = ['transformer']  # 'lstm', 'fcnn',, ]
 
 
-model_list = ['transformer']  # , 'lstm',  'fcnn']
-
-train_data_1, test_data_1, val_data_1, name_dataset_train, name_dataset_test, name_dataset_val = utils.read_data(
-    timestamp_col_name=timestamp_col)
-
-for x in range(1, 7):
+for x in range(0, 4):
 
     for model_name in model_list:
+        if x == 0:
+            train_data_1, test_data_1, val_data_1, name_dataset_train, name_dataset_test, name_dataset_val = utils.read_data(
+                'Train0Anomalies', 'Test3Anomalies', timestamp_col_name=timestamp_col)
 
+            sec_len = 202
+        if x == 1:
+            train_data_1, test_data_1, val_data_1, name_dataset_train, name_dataset_test, name_dataset_val = utils.read_data(
+                'TrainMoreData0Anomalies', 'Test3Anomalies', timestamp_col_name=timestamp_col)
+
+            sec_len = 202
+        if x == 2:
+            train_data_1, test_data_1, val_data_1, name_dataset_train, name_dataset_test, name_dataset_val = utils.read_data('Train3AnomaliesOnePerF', 'Test3Anomalies',
+                                                                                                                             timestamp_col_name=timestamp_col)
+            sec_len = 202
+        if x == 3:
+            train_data_1, test_data_1, val_data_1, name_dataset_train, name_dataset_test, name_dataset_val = utils.read_data('Train6AnomaliesTwoPerF', 'Test3Anomalies',
+                                                                                                                             timestamp_col_name=timestamp_col)
+            sec_len = 202
+        print(name_dataset_train, name_dataset_test)
+        window_size = sec_len+sec_len_output
+        batch_size = 256
         if model_name == 'lstm':
             epochs = 1000
-            learning_rate = 0.00001
-            patience = 500
-            batch_size = 256
-            sec_len = 194
+            learning_rate = 0.000001
+            patience = 600
             num_layers = 2
             hidden_dim = 64
-            window_size = sec_len+sec_len_output
             model = lstm.SimpleLSTM(input_dim=len(exogenous_vars), hidden_dim=hidden_dim,
                                     num_layers=num_layers, output_dim=sec_len_output).to(device)
         if model_name == 'fcnn':
-            epochs = 40
+            epochs = 90
             learning_rate = 0.00001
-            patience = 30
-            batch_size = 256
-            sec_len = 210
-            window_size = sec_len+sec_len_output
+            patience = 50
             model = fcnn.FCNN(sec_len, len(exogenous_vars)).to(device)
         if model_name == 'transformer':
-            epochs = 60
+            epochs = 200
             learning_rate = 0.000015
-            patience = 60
-            batch_size = 256
-            sec_len = 194  # must be even
-            window_size = sec_len+sec_len_output
-            num_layers = 1
+            patience = 80
+            num_layers = 2
             num_heads = 4
             d_model = 512
             dropout = 0.1
             dim_feedforward = 512
             dropouta = 0.2
-            if x == 0:
-                epochs = 70
-                #epochs = 50
-            if x == 1:
-                dim_feedforward = 256
-                #num_heads = 2
-            if x == 2:
-                num_heads = 8
-                #num_heads = 6
-            if x == 3:
-                d_model = 256
-            if x == 4:
-                dropout = 0
-            if x == 5:
-                dropout = 0.2
-            if x == 6:
-                dropouta = 0.1
-            if x == 7:
-                dropouta = 0.1
 
             model = transformer.TransformerEncoderRegressor(
                 len(exogenous_vars), window_size-1, num_heads, num_layers, dropout, d_model, dim_feedforward, dropouta).to(device)
         iteration = str(x)
         model_name = model.__class__.__name__
+        train_data_for_loop = train_data_1.copy()
+        test_data_for_loop = test_data_1.copy()
 
         # specifically for the use case of the cone: shifting output target to right by half of the width of the cone
-        train_data_1.iloc[:, target_idx] = utils.prepare_elevation_profile(
-            jump=sec_len/2, df=train_data_1, column_to_be_shifted=target_idx)
-        test_data_1.iloc[:, target_idx] = utils.prepare_elevation_profile(
-            jump=sec_len/2, df=test_data_1, column_to_be_shifted=target_idx)
+        train_data_for_loop.iloc[:, target_idx] = utils.prepare_elevation_profile(
+            jump=sec_len/2, df=train_data_for_loop, column_to_be_shifted=target_idx)
+        test_data_for_loop.iloc[:, target_idx] = utils.prepare_elevation_profile(
+            jump=sec_len/2, df=test_data_for_loop, column_to_be_shifted=target_idx)
 
-        val_data_1.iloc[:, target_idx] = utils.prepare_elevation_profile(
-            jump=sec_len/2, df=val_data_1, column_to_be_shifted=target_idx)
+        # val_data_1.iloc[:, target_idx] = utils.prepare_elevation_profile(
+        #  jump=sec_len/2, df=val_data_1, column_to_be_shifted=target_idx)
         train_scalers = {}
-        for i in input_variables:
-            scaler = StandardScaler()
-            train_data_1[i] = scaler.fit_transform(
-                train_data_1[i].values.reshape(-1, 1))
-            train_scalers[i] = scaler
-        test_scalers = {}
-        for i in input_variables:
-            scaler = StandardScaler()
-            test_data_1[i] = scaler.fit_transform(
-                test_data_1[i].values.reshape(-1, 1))
-            test_scalers[i] = scaler
-        for i in input_variables:
-            scaler = StandardScaler()
-            val_data_1[i] = scaler.fit_transform(
-                val_data_1[i].values.reshape(-1, 1))
 
-        #total_rows = len(train_data_1)
-        #split_train = round(total_rows * 0.9)
+        for i in input_variables:
+            scaler = StandardScaler()
+            train_data_for_loop[i] = scaler.fit_transform(
+                train_data_for_loop[i].values.reshape(-1, 1))
+            test_data_for_loop[i] = scaler.transform(
+                test_data_for_loop[i].values.reshape(-1, 1))
+            train_scalers[i] = scaler
+        # for i in input_variables:
+        #    scaler = StandardScaler()
+        #    val_data_1[i] = scaler.fit_transform(
+        #        val_data_1[i].values.reshape(-1, 1))
+
+        total_rows = len(train_data_for_loop)
+        split_train = round(total_rows * 0.9)
 
     # Create separate dataframes for clarity
-       # training_data = train_data_1.iloc[:split_train, :]
-       # validation_data = train_data_1.iloc[split_train:, :]
+        training_data = train_data_for_loop.iloc[:split_train, :]
+        validation_data = train_data_for_loop.iloc[split_train:, :]
     # test_data = data.iloc[split_val:, :]
-        print("Length of train_data:", len(train_data_1))
+        print("Length of train_data:", len(train_data_for_loop))
     # print("Length of validation_data:", len(validation_data))
-        print("Length of test_data:", len(test_data_1))
+        print("Length of test_data:", len(test_data_for_loop))
     # print("Length of val_data:", len(val_data))
 
         training_indices = utils.get_indices_entire_sequence(
-            data=train_data_1,
+            data=training_data,
             window_size=window_size,
             step_size=step_size)
 
     # Making instance of custom dataset class
         training_data = ds.CustomDataset(
-            data=torch.tensor(train_data_1[input_variables].values).float(),
+            data=torch.tensor(training_data[input_variables].values).float(),
             target_feature=target_idx,
             indices=training_indices,
             windowsize=window_size,
         )
 
         validation_indices = utils.get_indices_entire_sequence(
-            data=val_data_1,
+            data=validation_data,
             window_size=window_size,
             step_size=step_size)
 
         # Making instance of custom dataset class
         validation_data = ds.CustomDataset(
             data=torch.tensor(
-                val_data_1[input_variables].values).float(),
+                validation_data[input_variables].values).float(),
             target_feature=target_idx,
             indices=validation_indices,
             windowsize=window_size,
         )
 
         test_indices = utils.get_indices_entire_sequence(
-            data=test_data_1,
+            data=test_data_for_loop,
             window_size=window_size,
             step_size=step_size)
 
     # Making instance of custom dataset class
         test_data = ds.CustomDataset(
-            data=torch.tensor(test_data_1[input_variables].values).float(),
+            data=torch.tensor(
+                test_data_for_loop[input_variables].values).float(),
             target_feature=target_idx,
             indices=test_indices,
             windowsize=window_size
         )
+        train_data_for_loop = train_data_1.copy()
+        print('train.head()', train_data_for_loop.head())
+        test_data_for_loop = test_data_1.copy()
+        print('test_data_for_loop.head()', test_data_for_loop.head())
 
         training_data = DataLoader(
             training_data, batch_size, drop_last=True)
@@ -214,13 +207,14 @@ for x in range(1, 7):
 
         start = time.time()
         for epoch in range(epochs):
+            print(epoch)
             for i, (X, y) in enumerate(training_data):
                 model.train()
-                print(epoch, i)
+                # print(epoch, i)
                 X = X.to(device)
                 y = y.to(device)
-                print(X.shape)
-                print(y.shape)
+                # print(X.shape)
+                # print(y.shape)
                 output = model(X)
                 print(output.shape)
                 loss = criterion(output, y)
@@ -255,14 +249,15 @@ for x in range(1, 7):
                       epoch, average_val_loss)
                 best_loss = average_val_loss
                 counter = 0
-                #torch.save(model.state_dict(), 'best_model'+model_name+'.pt')
+                torch.save(model.state_dict(), 'best_model'+model_name+'.pt')
             else:
                 counter += 1
             if counter >= patience:
                 print("Early stopping at epoch: ",
                       epoch, "bestloss: ", best_loss)
                 break
-        directory = model_name+name_dataset_train+name_dataset_test+iteration
+        directory = model_name+name_dataset_train + \
+            name_dataset_test+iteration + str(datetime.now())
         os.mkdir(directory)
 
         end = time.time()
@@ -289,7 +284,7 @@ for x in range(1, 7):
             X = X.to(device)
             y = y.to(device)
 
-            # model.load_state_dict(torch.load('best_model'+model_name+'.pt'))
+            model.load_state_dict(torch.load('best_model'+model_name+'.pt'))
             model.eval()
 
             with torch.no_grad():
@@ -303,10 +298,10 @@ for x in range(1, 7):
             y = y.reshape(-1, original_shape[-1])
 
             # Inverse transform predictions
-            predictions = test_scalers[target_col_name].inverse_transform(
+            predictions = train_scalers[target_col_name].inverse_transform(
                 output)
 
-            y = test_scalers[target_col_name].inverse_transform(y)
+            y = train_scalers[target_col_name].inverse_transform(y)
 
             # Append predictions and actual values to the lists
             all_predictions.append(predictions)
@@ -318,11 +313,11 @@ for x in range(1, 7):
         # Flatten predictions and actual values
         all_predictions_flat = all_predictions.flatten()
         all_y_flat = all_y.flatten()
-        mae = metrics.mean_absolute_error(all_predictions_flat, all_y_flat)
-        mse = metrics.mean_squared_error(all_predictions_flat, all_y_flat)
+        mae = metrics.mean_absolute_error(all_predictions, all_y)
+        mse = metrics.mean_squared_error(all_predictions, all_y)
         rmse = metrics.root_mean_squared_error(
-            all_predictions_flat, all_y_flat)
-        r2 = metrics.r_squared(all_predictions_flat, all_y_flat)
+            all_predictions, all_y)
+        r2 = metrics.r_squared(all_predictions, all_y)
 
         unique_id = str(uuid.uuid4())
         model_metrics = {'unique_id': unique_id + iteration, 'model': model_name, 'mae': mae, 'mse': mse, 'rmse': rmse, 'r2':
@@ -408,10 +403,8 @@ for x in range(1, 7):
 
         # Inverse transform predictions
             predictions = train_scalers[target_col_name].inverse_transform(
-                output)
-        # predictions = scaler.inverse_transform(predictions)
+                predictions)
             y = train_scalers[target_col_name].inverse_transform(y)
-        # trg_y = scaler.inverse_transform(trg_y)
 
         # Append predictions and actual values to the lists
             all_predictions.append(predictions)
