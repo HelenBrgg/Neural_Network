@@ -1,4 +1,3 @@
-
 from typing import Union
 
 import pandas as pd
@@ -29,35 +28,10 @@ def read_data(name_train, name_test, data_dir: Union[str, Path] = "data",
     csv_files = list(data_dir.glob("*.csv"))
 
     for csv_file in csv_files:
-        if 'BigCone' in name_train and 'BigCone' in name_test:
-            if name_train in csv_file.stem and 'BigCone' in csv_file.stem:
-                data_path_train = csv_file
-            if name_test in csv_file.stem and 'BigCone' in csv_file.stem:
-                data_path_test = csv_file
-            if 'Test1' in csv_file.stem:
-                data_path_val = csv_file
-        if 'Exponential' in name_train and 'Exponential' in name_test:
-            if name_train in csv_file.stem and 'Exponential' in csv_file.stem:
-                data_path_train = csv_file
-            if name_test in csv_file.stem and 'Exponential' in csv_file.stem:
-                data_path_test = csv_file
-            if 'Test1' in csv_file.stem:
-                data_path_val = csv_file
-        if 'WideCone' in name_train and 'WideCone' in name_test:
-            if name_train in csv_file.stem and 'WideCone' in csv_file.stem:
-                data_path_train = csv_file
-            if name_test in csv_file.stem and 'WideCone' in csv_file.stem:
-                data_path_test = csv_file
-            if 'Test1' in csv_file.stem:
-                data_path_val = csv_file
-        else:
-            if name_train in csv_file.stem and not 'BigCone' in csv_file.stem and not 'Exponential' in csv_file.stem and not 'WideCone' in csv_file.stem:
-                data_path_train = csv_file
-            if 'Test1' in csv_file.stem:
-                data_path_val = csv_file
-            if name_test in csv_file.stem and not 'BigCone' in csv_file.stem and not 'Exponential' in csv_file.stem and not 'WideCone' in csv_file.stem:
-                data_path_test = csv_file
-
+        if name_train in csv_file.stem:
+            data_path_train = csv_file
+        if name_test in csv_file.stem:
+            data_path_test = csv_file
     #print("Reading file in {}".format(data_path))
 
     train_data = pd.read_csv(
@@ -74,13 +48,6 @@ def read_data(name_train, name_test, data_dir: Union[str, Path] = "data",
         infer_datetime_format=True,
         low_memory=False
     )
-    validation_data = pd.read_csv(
-        data_path_val,
-        parse_dates=[timestamp_col_name],
-        index_col=[timestamp_col_name],
-        infer_datetime_format=True,
-        low_memory=False
-    )
 
     # Make sure all "n/e" values have been removed from df.
     if is_ne_in_df(train_data):
@@ -89,18 +56,14 @@ def read_data(name_train, name_test, data_dir: Union[str, Path] = "data",
     if is_ne_in_df(test_data):
         raise ValueError(
             "data frame contains 'n/e' values. These must be handled")
-    if is_ne_in_df(validation_data):
-        raise ValueError(
-            "data frame contains 'n/e' values. These must be handled")
 
     train_data = to_numeric_and_downcast_data(train_data)
     test_data = to_numeric_and_downcast_data(test_data)
-    validation_data = to_numeric_and_downcast_data(validation_data)
 
     # Make sure data is in ascending order by timestamp
     #data.sort_values(by=[timestamp_col_name], inplace=True)
 
-    return train_data, test_data, validation_data, data_path_train.stem, data_path_test.stem, data_path_val.stem
+    return train_data, test_data, data_path_train.stem, data_path_test.stem
 
 
 def is_ne_in_df(df: pd.DataFrame):
