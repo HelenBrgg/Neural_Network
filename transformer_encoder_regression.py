@@ -4,16 +4,30 @@ import math
 
 
 class TransformerEncoderRegressor(nn.Module):
+    """
+        Initialize the Transformer Encoder Regressor.
+
+        Args:
+        - num_features (int): Number of input features.
+        - window_size (int): Size of the input window.
+        - num_heads (int): Number of attention heads in the TransformerEncoderLayer.
+        - num_layers (int): Number of layers in the TransformerEncoder.
+        - dropout (float): Dropout for linear layer
+        - d_model (int): Dimension of the model. Default is 512.
+        - dim_feedforward (int): Dimension of the feedforward network. Default is 512.
+        - dropouta (float): Dropout probability for Encoder. Default is 0.2.
+    """
+
     def __init__(self, num_features, window_size, num_heads, num_layers, dropout, d_model=512, dim_feedforward=512, dropouta=0.2):
         super(TransformerEncoderRegressor, self).__init__()
 
         # Linear layer to project input features to d_model size
-
         self.dropout = dropout
         self.d_model = d_model
         self.pos_encoder = PositionalEncoding(self.d_model, self.dropout)
         self.embedding = nn.Linear(num_features, d_model)
         self.dropout1 = nn.Dropout(dropout)
+        # Encoder itself
         self.transformer_encoder = nn.TransformerEncoder(
             nn.TransformerEncoderLayer(
                 d_model=d_model, nhead=num_heads, dropout=dropouta, dim_feedforward=dim_feedforward),
@@ -22,7 +36,6 @@ class TransformerEncoderRegressor(nn.Module):
         self.fc = nn.Linear(d_model * window_size, 1)  # Output prediction
 
     def forward(self, x):
-        # print(model)
         # Assuming x is of shape (batch_size, window_size, num_features)
         x = self.embedding(x)
         x = self.pos_encoder(x)

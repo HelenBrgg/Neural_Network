@@ -37,7 +37,7 @@ target_idx = 0  # index position of target in batched trg_y
 model_list = ['transformer', 'lstm', 'fcnn']
 # read_data reads data from data file, accepts string with name of trainfile and of testfile
 train_data_1, test_data_1, name_dataset_train, name_dataset_test, = utils.read_data(
-    'Train0Anomalies', 'Test3Anomalies', timestamp_col_name=timestamp_col)
+    'Train3Anomalies', 'Test3Anomalies', timestamp_col_name=timestamp_col)
 
 # Model specific hyperparameter
 for model_name in model_list:
